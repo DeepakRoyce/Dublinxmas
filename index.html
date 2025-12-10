@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dublin Christmas Check-In | Firebase</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        /* --- DUBLIN CHRISTMAS UI/UX STYLES --- */
+        :root {
+            /* Christmas Colors */
+            --primary-color: #0073e6;    /* Deep Blue/Naval Blue (Night Sky/St Stephen's Green) */
+            --secondary-color: #cc0000;  /* Bright Red (Baubles/Santa) */
+            --accent-color: #ffcc00;     /* Gold/Amber (Lights/Tinsel) */
+            --success-color: #28a745;    /* Green (Traditional) */
+            
+            /* Text & Background */
+            --light-bg: #f7f7f7;         /* Snowy White */
+            --dark-text: #333333;
+            --border-color: #cccccc;
+            --font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-family);
+            margin: 0;
+            padding: 0;
+            background-color: var(--light-bg);
+            color: var(--dark-text);
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 25px 0;
+            text-align: center;
+            border-bottom: 5px solid var(--accent-color);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2.2em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        main {
+            padding: 20px;
+            max-width: 1000px;
+            margin: 30px auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        /* --- NAVIGATION TABS --- */
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+
+        .tab-button {
+            padding: 12px 25px;
+            margin: 0 8px;
+            border: none;
+            cursor: pointer;
+            background-color: var(--light-bg);
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            font-size: 17px;
+            font-weight: bold;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .tab-button.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--accent-color);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* --- FORM STYLING (CHECK-IN PAGE) --- */
+        #check-in-form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+            background-color: #eaf2ff; /* Very light blue sheen */
+            border-radius: 8px;
+            border: 1px dashed var(--primary-color);
+        }
+
+        #check-in-input {
+            width: 100%;
+            max-width: 450px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 3px solid var(--primary-color);
+            border-radius: 8px;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        #check-in-button {
+            padding: 15px 40px;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 50px; /* Round button */
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            transition: background-color 0.2s, transform 0.1s;
+            box-shadow: 0 4px var(--accent-color);
+        }
+
+        #check-in-button:hover {
+            background-color: #b30000;
+            transform: translateY(1px);
+            box-shadow: 0 3px var(--accent-color);
+        }
+
+        #check-in-message {
+            margin-top: 25px;
+            padding: 15px 30px;
+            border-radius: 6px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+            font-size: 1.1em;
+        }
+
+        .message-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 2px solid var(--success-color);
+        }
+
+        .message-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 2px solid var(--secondary-color);
+        }
+
+        /* --- STAFF VIEW STYLING --- */
+        #staff-view h2 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        #search-bar {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        #guestlist-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        #guestlist-table th, #guestlist-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        #guestlist-table th {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 14px;
+        }
+        
+        #guestlist-table tbody tr:hover {
+            background-color: #f0f0f0;
+        }
+
+        .status-checked-in {
+            color: var(--success-color);
+            font-weight: bold;
+        }
+
+        .status-not-checked-in {
+            color: var(--secondary-color);
+            font-weight: bold;
+        }
+        
+        .checked-in-row {
+            opacity: 0.7;
+            background-color: #e6f7e0 !important; /* Light green/snowy background */
+        }
+
+        .staff-check-in-btn {
+            padding: 8px 12px;
+            background-color: var(--accent-color);
+            color: var(--dark-text);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        
+        .staff-check-in-btn:hover {
+            background-color: #e0b300;
+        }
+        
+        /* Loading/Error state */
+        .loading-message {
+            text-align: center;
+            padding: 20px;
+            font-size: 1.2em;
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🎄 Dublin Christmas Event Check-In 🌟</h1>
+    </header>
+
+    <main>
+        <div class="tabs">
+            <button class="tab-button active" data-tab="attendee-view">Ticket Check-In</button>
+            <button class="tab-button" data-tab="staff-view">Staff Guestlist</button>
+        </div>
+
+        <div id="attendee-view" class="tab-content active">
+            <h2>Welcome! Please Enter Your Code or Name</h2>
+            <form id="check-in-form">
+                <input type="text" id="check-in-input" placeholder="Enter Full Name or Booking Code" required>
+                <button type="submit" id="check-in-button">Check In Now</button>
+            </form>
+            <div id="check-in-message"></div>
+        </div>
+
+        <div id="staff-view" class="tab-content">
+            <h2>Guestlist Management (Live)</h2>
+            <input type="text" id="search-bar" placeholder="Quick Search: Name or Code...">
+
+            <div id="loading-spinner" class="loading-message">Loading Guestlist...</div>
+
+            <table id="guestlist-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Code</th>
+                        <th>Status</th>
+                        <th>Arrival Time</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="guestlist-body">
+                    </tbody>
+            </table>
+        </div>
+
+    </main>
+
+    <script>
+        // --- JAVASCRIPT LOGIC ---
+        
+        // =========================================================================
+        // 2. PASTE YOUR FIREBASE CONFIG HERE
+        //    (Replace the placeholder values with your actual project keys)
+        // =========================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyC9e8ISFAVm9Z2nmq2yWHvt_t1HCEmw7W0", 
+            authDomain: "dublinxmascheckin.firebaseapp.com",
+            projectId: "dublinxmascheckin",
+            storageBucket: "dublinxmascheckin.firebasestorage.app",
+            messagingSenderId: "392375826972",
+            appId: "1:392375826972:web:4e2826cbc0a118a43efdd9"
+        };
+        // =========================================================================
+
+        // Initialize Firebase
+        let app;
+        let db;
+        try {
+            app = firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+        } catch (e) {
+            console.error("Firebase initialization failed:", e);
+            alert("Firebase setup error. Check console for details and ensure config is correct.");
+        }
+        
+        const GUESTLIST_COLLECTION = 'guests';
+        let guestListCache = []; // Local cache of the guest list
+
+        // --- UTILITY FUNCTIONS ---
+
+        function formatTime(timeString) {
+            if (!timeString) return 'N/A';
+            const date = new Date(timeString);
+            return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        }
+
+        function showMessage(msg, type) {
+            const checkInMessage = document.getElementById('check-in-message');
+            checkInMessage.textContent = msg;
+            checkInMessage.className = '';
+            checkInMessage.classList.add(`message-${type}`);
+            checkInMessage.style.display = 'block';
+
+            setTimeout(() => {
+                checkInMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        // --- FIREBASE DATA LISTENERS & CACHE ---
+
+        // Real-time listener for the staff view
+        function setupFirebaseListener() {
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const guestlistTable = document.getElementById('guestlist-table');
+            
+            // Show loading spinner while fetching
+            loadingSpinner.style.display = 'block';
+            guestlistTable.style.display = 'none';
+
+            db.collection(GUESTLIST_COLLECTION).onSnapshot(snapshot => {
+                guestListCache = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                // Once data is loaded/updated, render the table
+                renderGuestList(document.getElementById('search-bar').value);
+                
+                loadingSpinner.style.display = 'none';
+                guestlistTable.style.display = 'table';
+            }, error => {
+                console.error("Error setting up Firestore listener:", error);
+                loadingSpinner.textContent = "Error loading data. Check Firebase connection.";
+            });
+        }
+
+
+        // --- ATTENDEE VIEW LOGIC ---
+
+        const checkInForm = document.getElementById('check-in-form');
+        const checkInInput = document.getElementById('check-in-input');
+
+        checkInForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const query = checkInInput.value.trim();
+            if (!query) return;
+
+            const upperQuery = query.toUpperCase();
+            
+            // Search the local cache for the guest
+            const guest = guestListCache.find(g => 
+                g.name.toUpperCase() === upperQuery || g.code.toUpperCase() === upperQuery
+            );
+
+            if (guest) {
+                if (guest.checkedIn) {
+                    showMessage(`👋 Welcome Back, ${guest.name}! You are already checked in at ${formatTime(guest.arrivalTime)}.`, 'error');
+                } else {
+                    // Update Firebase
+                    try {
+                        const checkInTime = new Date().toISOString();
+                        await db.collection(GUESTLIST_COLLECTION).doc(guest.id).update({
+                            checkedIn: true,
+                            arrivalTime: checkInTime
+                        });
+                        showMessage(`🎉 Success! Welcome, ${guest.name}! Happy Christmas from Dublin!`, 'success');
+                        checkInInput.value = ''; // Clear input on success
+                    } catch (error) {
+                        console.error("Error checking in guest:", error);
+                        showMessage('❌ Check-in failed. Please try again or find a staff member.', 'error');
+                    }
+                }
+            } else {
+                showMessage('❌ Error: Name or Booking Code not found on the guestlist.', 'error');
+            }
+        });
+
+        // --- STAFF VIEW LOGIC ---
+
+        const guestlistBody = document.getElementById('guestlist-body');
+        const searchBar = document.getElementById('search-bar');
+
+        // Function to handle staff check-in/uncheck-in via Firebase
+        async function toggleCheckIn(docId, currentStatus) {
+            const newState = !currentStatus;
+            const newTime = newState ? new Date().toISOString() : null;
+            
+            try {
+                await db.collection(GUESTLIST_COLLECTION).doc(docId).update({
+                    checkedIn: newState,
+                    arrivalTime: newTime
+                });
+                // The Firebase listener will automatically re-render the table
+            } catch (error) {
+                console.error("Error toggling check-in status:", error);
+            }
+        }
+
+        // Expose function to global scope so HTML onclick can access it
+        window.toggleCheckIn = toggleCheckIn;
+
+        // Function to render the guest list table based on the local cache
+        function renderGuestList(filterQuery = '') {
+            guestlistBody.innerHTML = '';
+            const query = filterQuery.toUpperCase();
+
+            let filteredList = guestListCache.filter(guest => 
+                guest.name.toUpperCase().includes(query) || 
+                (guest.code && guest.code.toUpperCase().includes(query)) // Ensure code exists
+            );
+            
+            // Sort: Not Checked In first, then alphabetically
+            filteredList.sort((a, b) => {
+                if (a.checkedIn && !b.checkedIn) return 1;
+                if (!a.checkedIn && b.checkedIn) return -1;
+                return a.name.localeCompare(b.name);
+            });
+
+            if (filteredList.length === 0 && query) {
+                guestlistBody.innerHTML = `<tr><td colspan="5" class="loading-message">No guests match '${filterQuery}'.</td></tr>`;
+                return;
+            }
+
+            filteredList.forEach(guest => {
+                const tr = document.createElement('tr');
+                const statusClass = guest.checkedIn ? 'status-checked-in' : 'status-not-checked-in';
+                const statusText = guest.checkedIn ? 'Checked In' : 'Not Checked In';
+                const buttonText = guest.checkedIn ? 'UNDO' : 'Check In';
+                const rowClass = guest.checkedIn ? 'checked-in-row' : '';
+                const codeDisplay = guest.code || 'N/A';
+
+                tr.className = rowClass;
+                tr.innerHTML = `
+                    <td>${guest.name}</td>
+                    <td>${codeDisplay}</td>
+                    <td class="${statusClass}">${statusText}</td>
+                    <td>${formatTime(guest.arrivalTime)}</td>
+                    <td>
+                        <button class="staff-check-in-btn" onclick="toggleCheckIn('${guest.id}', ${guest.checkedIn})">${buttonText}</button>
+                    </td>
+                `;
+                guestlistBody.appendChild(tr);
+            });
+        }
+
+        // Event listener for the search bar
+        searchBar.addEventListener('input', (e) => {
+            renderGuestList(e.target.value);
+        });
+
+        // --- TAB SWITCHING LOGIC ---
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const targetTab = button.dataset.tab;
+
+                // Remove active class from all buttons and contents
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+                // Add active class to the clicked button and its content
+                button.classList.add('active');
+                document.getElementById(targetTab).classList.add('active');
+            });
+        });
+
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            if (db) {
+                setupFirebaseListener(); // Starts the real-time data flow
+            }
+            
+            // If the staff tab is not visible initially, we only render when clicked.
+            // But since the listener is active, the cache will be populated.
+        });
+        
+        // --- DATA SEEDING (FOR INITIAL SETUP) ---
+        // Uncomment and run this once to populate your Firestore collection.
+        // REMEMBER TO COMMENT IT OUT AFTER RUNNING!
+        /*
+        async function seedDatabase() {
+            const initialGuests = [
+                { name: "Siobhán O'Connell", code: "DUB001", checkedIn: false, arrivalTime: null },
+                { name: "Paddy Murphy", code: "DUB002", checkedIn: false, arrivalTime: null },
+                { name: "Fiona Kelly", code: "DUB003", checkedIn: true, arrivalTime: new Date().toISOString() },
+                { name: "Liam Ryan", code: "DUB004", checkedIn: false, arrivalTime: null },
+                { name: "Aoife Doyle", code: "DUB005", checkedIn: false, arrivalTime: null }
+            ];
+            
+            console.log("Seeding database...");
+            const batch = db.batch();
+            initialGuests.forEach(guest => {
+                const docRef = db.collection(GUESTLIST_COLLECTION).doc(); // Auto-generate ID
+                batch.set(docRef, guest);
+            });
+            await batch.commit();
+            console.log("Database seeded successfully!");
+        }
+        // seedDatabase(); 
+        */
+
+    </script>
+</body>
+</html>
